@@ -4,7 +4,7 @@ Python based OpenTelemetry Collector demo stack for providing an understanding o
 
 ![FastAPI Badge](https://img.shields.io/badge/FastAPI-v0.0.1-039385
 ) ![Flask Badge](https://img.shields.io/badge/Flask-v0.0.1-5DAED4
-) [![Grafana Badge](https://img.shields.io/badge/Grafana-latest-FAA422
+) [![Grafana Badge](https://img.shields.io/badge/Grafana-13.2.6-FAA422
 )](https://hub.docker.com/r/grafana/grafana) [![Tempo Badge](https://img.shields.io/badge/Tempo-v3.1.1-FAA422)](https://hub.docker.com/layers/grafana/tempo/3.1.1/images/sha256-24ded48437b982348fdb52d6353d6e0a6ea519e57b0517d6065d419112d4032c)
 [![Loki Badge](https://img.shields.io/badge/Loki-v3.7.9-FAA422
 )](https://hub.docker.com/layers/grafana/loki/3.7.9/images/sha256-569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e)
