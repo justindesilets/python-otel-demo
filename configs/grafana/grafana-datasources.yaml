@@ -1,0 +1,71 @@
+apiVersion: 1
+
+datasources:
+- name: Prometheus
+  type: prometheus
+  uid: prometheus
+  access: proxy
+  orgId: 1
+  url: http://prometheus:9090
+  basicAuth: false
+  isDefault: true
+  version: 1
+  editable: false
+  jsonData:
+    httpMethod: GET
+- name: Tempo
+  type: tempo
+  access: proxy
+  orgId: 1
+  url: http://tempo:3200
+  basicAuth: false
+  isDefault: false
+  version: 1
+  editable: false
+  apiVersion: 1
+  uid: tempo
+  jsonData:
+    httpMethod: GET
+    tracesToLogsV2:
+      datasourceUid: 'loki'
+      spanStartTimeShift: '-1m'
+      spanEndTimeShift: '1m'
+      tags:
+        - key: 'service.name'
+          name: 'service_name'
+      filterByTraceID: true
+      filterBySpanID: false
+      customQuery: false
+    tracesToMetrics:
+      datasourceUid: 'prometheus'
+      spanStartTimeShift: '-2m'
+      spanEndTimeShift: '2m'
+      tags:
+        - key: 'service.name'
+          value: 'service_name'
+      queries:
+        - name: 'Request rate'
+          query: 'sum(rate(traces_spanmetrics_calls_total{$__tags}[5m]))'
+        - name: 'Error rate'
+          query: 'sum(rate(traces_spanmetrics_calls_total{$__tags, status_code="STATUS_CODE_ERROR"}[5m]))'
+    serviceMap:
+      datasourceUid: prometheus
+    streamingEnabled:
+      search: true
+      metrics: true
+- name: Loki
+  type: loki
+  uid: loki
+  access: proxy
+  orgId: 1
+  url: http://loki:3100
+  basicAuth: false
+  isDefault: false
+  version: 1
+  editable: false
+  jsonData:
+    derivedFields:
+      - datasourceUid: 'tempo'
+        matcherRegex: '(?:trace_id|traceID|traceId)["=:\s]+(\w+)]'
+    maxLines: 1000
+    timeout: 60
