@@ -1,0 +1,129 @@
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: fastapi.Dockerfile
+    container_name: fastapi
+    ports:
+      - "8080:8080"
+    environment:
+      - FASTAPI_OTEL_AUTO_CONFIGURE=True
+      #- PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - OTEL_METRICS_EXPORTER=OTLP
+      - OTEL_TRACES_EXPORTER=OTLP
+      - OTEL_EXPORTER_OTLP_INSECURE=True
+      - OTEL_SERVICE_NAME=fastapi-otel-demo
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    networks:
+      - app_network
+
+  flask:
+    build:
+      context: .
+      dockerfile: flask.Dockerfile
+    container_name: flask
+    ports:
+      - "8081:8081"
+    environment:
+      - OTEL_SERVICE_NAME=flask-otel-demo
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    networks:
+      - app_network
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.164.0
+    container_name: otel-collector
+    volumes:
+      - ./configs/otel/config.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+    ports:
+      - "13133:13133" # Health check port
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "9888:9888"
+    networks:
+      - app_network
+
+  tempo:
+    image: grafana/tempo:3.1.1
+    container_name: tempo
+    command: "--target=all --config.file=/etc/tempo.yaml"
+    volumes:
+      - ./configs/tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "9095:9095"
+    networks:
+      - app_network
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus.yaml
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+      - --enable-feature=native-histograms
+    volumes:
+      - ./configs/prometheus/prometheus.yaml:/etc/prometheus.yaml
+    ports:
+      - "9090:9090"
+    networks:
+      - app_network
+
+  loki:
+    image: grafana/loki:3.7.9
+    container_name: loki
+    command: -config.file=/etc/loki-config.yaml
+    volumes:
+      - ./configs/loki/loki-config.yaml:/etc/loki-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:13.2.6
+    volumes:
+      - ./configs/grafana/grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./configs/grafana/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor metricsSummary
+    ports:
+      - "3000:3000"
+    networks:
+      - app_network
+
+  postgres:
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demopassword
+      POSTGRES_DB: demodb
+    ports:
+      - "5432:5432"
+    volumes:
+      - data_sql:/var/lib/postgresql
+    networks:
+      - app_network
+
+volumes:
+  tempo-data:
+  data_sql:
+
+networks:
+  app_network:
+    driver: bridge
